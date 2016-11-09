@@ -1,6 +1,6 @@
 # yarn.el
 
-> yarn.el makes it convenient to work with Yarn in NodeJS projects inside Emacs.
+> yarn.el makes it convenient to work with Yarn in Node.JS projects inside Emacs.
 
 This package provides [Emacs][emacs] support for the [Yarn][yarn] package manager.
 
