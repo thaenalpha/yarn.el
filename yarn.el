@@ -1,4 +1,4 @@
-;;; yarn.el --- Create and rule YARN packages from Emacs
+;;; yarn.el --- Create and manage Node.JS packages with Yarn inside Emacs.
 
 ;; Author: Justin Firth
 ;; Keywords: languages, javascript, convenience
