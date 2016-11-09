@@ -1,6 +1,6 @@
 # yarn.el
 
-> yarn.el makes it convenient to work Yarn in NodeJS projects inside Emacs.
+> yarn.el makes it convenient to work with Yarn in NodeJS projects inside Emacs.
 
 This package provides [Emacs][emacs] support for the [Yarn][yarn] package manager.
 
@@ -68,6 +68,11 @@ These commands are all available from `M-x` command menu:
 | `yarn-upgrade`                      | Upgrade all dependencies                                 |
 | `yarn-version`                      | Bump package version                                     |
 | `yarn-why`                          | Information about why a package is installed             |
+
+
+## Output
+
+Command output is piped to the `*yarn*` buffer, except in the case of `yarn-licenses-generate-disclaimer` which is instead piped to the `*yarn-disclaimer*` buffer.
 
 
 ## Example keyboard bindings
