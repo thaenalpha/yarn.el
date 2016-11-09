@@ -4,7 +4,7 @@
 
 This package provides [Emacs][emacs] support for the [Yarn][yarn] package manager.
 
-![Screencast][screencast]
+![Demo](./yarn-el-demo.gif?raw=true "Demo")
 
 
 ## Commands
@@ -96,5 +96,4 @@ Credits to [npm.el][npm.el] and contributors, which this package was forked from
 
 [emacs]: https://www.gnu.org/software/emacs
 [yarn]: https://yarnpkg.com
-[screencast]: https://dl.dropboxusercontent.com/u/15438741/yarn-el-demo.gif
 [npm.el]: https://github.com/azer/npm.el
