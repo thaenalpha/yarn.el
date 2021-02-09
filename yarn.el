@@ -567,12 +567,8 @@ displaying completions."
                 reverse
                 (-drop-while (lambda (c) (not (is-command (car c)))))
                 reverse
-                (-map (lambda (c)
-                        (cons (trim (car c))
-                              (concat
-                               (s-repeat (- 30 (length (car c))) " ")
-                               (trim (cadr c)))))))))
-      (cons command-list (ht-from-alist command-list)))))
+                (-map (lambda (c) (cons (trim (car c)) (trim (cadr c))))))))
+      (list (-map #'car command-list) (ht-from-alist command-list)))))
 
 ;;;###autoload
 (defun yarn-run (&optional script)
@@ -583,14 +579,15 @@ SCRIPT can be passed in or selected from a list of scripts configured in a packa
   (save-some-buffers (not compilation-ask-about-save)
                      (when (boundp 'compilation-save-buffers-predicate)
                        compilation-save-buffers-predicate))
-  (let* ((commands (yarn-parse-scripts (process-lines "yarn" "run")))
-         (scripts (car commands))
-         (docs (cdr commands))
-         (completion-extra-properties (list :annotation-function
-                                            (lambda (s) (ht-get docs s))))
-         (selected-script (or script (completing-read "Select script to run: " scripts)))
-         (script (concat "yarn run " selected-script))
-         (buffer-name (concat "*yarn run: " selected-script "*")))
+  (-let* (((scripts docs) (yarn-parse-scripts (process-lines "yarn" "run")))
+          (completion-extra-properties
+           (list :annotation-function
+                 (lambda (s)
+                   (let ((padding-len (1+ (- (-max (-map #'length scripts)) (length s)))))
+                     (concat (s-repeat padding-len " ") (ht-get docs s))))))
+          (selected-script (or script (completing-read "Select script to run: " scripts)))
+          (script (concat "yarn run " selected-script))
+          (buffer-name (concat "*yarn run: " selected-script "*")))
     (when (get-buffer buffer-name)
       (kill-buffer buffer-name))
     (with-current-buffer (get-buffer-create buffer-name)
