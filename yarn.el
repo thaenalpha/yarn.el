@@ -30,6 +30,8 @@
   (require 'cl))
 (require 'compile)
 (require 'json)
+(require 'dash)
+(require 's)
 
 (defgroup yarn nil
   "Run yarn in Emacs"
@@ -552,12 +554,25 @@ From http://benhollis.net/blog/2015/12/20/nodejs-stack-traces-in-emacs-compilati
     (add-hook 'compilation-filter-hook 'yarn-compilation-filter nil t)))
 
 (defun yarn-parse-scripts (raw-scripts)
-  "Parse the output of the `yarn run` command in RAW-SCRIPTS into a list of scripts."
-  (delq nil
-        (mapcar (lambda (script-line)
-                  (when (string-match-p "^  \\w" script-line)
-                    (string-trim script-line)))
-                raw-scripts)))
+  "Parse the output of the `yarn run` command in RAW-SCRIPTS into a list of scripts.
+Returns a cons of (script-list . hashtable) with the actual
+invoked command to be used in an annotation function when
+displaying completions."
+  (flet ((is-command (l) (string-match-p (rx line-start (* space) "-") l))
+         (trim (s) (string-trim-left s "[- ]*")))
+    (let ((command-list
+           (->> raw-scripts
+                (-drop-while (lambda (s) (not (is-command s))))
+                (-partition 2)
+                reverse
+                (-drop-while (lambda (c) (not (is-command (car c)))))
+                reverse
+                (-map (lambda (c)
+                        (cons (trim (car c))
+                              (concat
+                               (s-repeat (- 30 (length (car c))) " ")
+                               (trim (cadr c)))))))))
+      (cons command-list (ht-from-alist command-list)))))
 
 ;;;###autoload
 (defun yarn-run (&optional script)
@@ -568,14 +583,18 @@ SCRIPT can be passed in or selected from a list of scripts configured in a packa
   (save-some-buffers (not compilation-ask-about-save)
                      (when (boundp 'compilation-save-buffers-predicate)
                        compilation-save-buffers-predicate))
-  (let* ((scripts (yarn-parse-scripts (yarn-exec-with-path (process-lines "yarn" "run"))))
-         (selected-script (or script (ido-completing-read "Select script to run: " scripts)))
+  (let* ((commands (yarn-parse-scripts (process-lines "yarn" "run")))
+         (scripts (car commands))
+         (docs (cdr commands))
+         (completion-extra-properties (list :annotation-function
+                                            (lambda (s) (ht-get docs s))))
+         (selected-script (or script (completing-read "Select script to run: " scripts)))
          (script (concat "yarn run " selected-script))
          (buffer-name (concat "*yarn run: " selected-script "*")))
     (when (get-buffer buffer-name)
       (kill-buffer buffer-name))
-      (with-current-buffer (get-buffer-create buffer-name)
-        (yarn-exec-with-path 'compilation-start script 'yarn-compilation-mode (lambda (m) (buffer-name))))))
+    (with-current-buffer (get-buffer-create buffer-name)
+      (yarn-exec-with-path 'compilation-start script 'yarn-compilation-mode (lambda (m) (buffer-name))))))
 
 
 (provide 'yarn)
