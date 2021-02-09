@@ -63,12 +63,14 @@ NIL if they should be looked up from the global path"
 (defun yarn-exec-with-path (callback &rest args)
   "Execute CALLBACK with the path set to YARN_EXECUTABLE_PATH."
   (let ((exec-path (if yarn-executable-path
-                     (cons yarn-executable-path)
-                     exec-path))
-        (compilation-environment (if yarn-executable-path
-                                   (cons (concat "PATH=" yarn-executable-path path-separator (getenv "PATH")) compilation-environment)
-                                   compilation-environment)))
-    (apply callback args)))
+                       (cons yarn-executable-path)
+                     exec-path)))
+    (progn
+      (when yarn-executable-path
+        (setq-local compilation-environment
+                    (cons (concat "PATH=" yarn-executable-path path-separator (getenv "PATH"))
+                          compilation-environment)))
+      (apply callback args))))
 
 (defun yarn-git ()
   (concat "git@github.com:" yarn-vars-git-user "/" yarn-vars-name ".git"))
@@ -547,8 +549,7 @@ From http://benhollis.net/blog/2015/12/20/nodejs-stack-traces-in-emacs-compilati
   "Yarn compilation mode."
   (progn
     (set (make-local-variable 'compilation-error-regexp-alist) yarn-node-error-regexp-alist)
-    (add-hook 'compilation-filter-hook 'yarn-compilation-filter nil t)
-  ))
+    (add-hook 'compilation-filter-hook 'yarn-compilation-filter nil t)))
 
 (defun yarn-parse-scripts (raw-scripts)
   "Parse the output of the `yarn run` command in RAW-SCRIPTS into a list of scripts."
