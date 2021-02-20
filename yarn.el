@@ -64,15 +64,9 @@ NIL if they should be looked up from the global path"
 
 (defun yarn-exec-with-path (callback &rest args)
   "Execute CALLBACK with the path set to YARN_EXECUTABLE_PATH."
-  (let ((exec-path (if yarn-executable-path
-                       (cons yarn-executable-path)
-                     exec-path)))
-    (progn
-      (when yarn-executable-path
-        (setq-local compilation-environment
-                    (cons (concat "PATH=" yarn-executable-path path-separator (getenv "PATH"))
-                          compilation-environment)))
-      (apply callback args))))
+  (when yarn-executable-path
+    (setenv "PATH" (concat yarn-executable-path path-separator (getenv "PATH"))))
+  (apply callback args))
 
 (defun yarn-git ()
   (concat "git@github.com:" yarn-vars-git-user "/" yarn-vars-name ".git"))
