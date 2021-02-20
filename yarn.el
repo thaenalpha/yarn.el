@@ -30,6 +30,8 @@
   (require 'cl))
 (require 'compile)
 (require 'json)
+(require 'dash)
+(require 's)
 
 (defgroup yarn nil
   "Run yarn in Emacs"
@@ -62,13 +64,9 @@ NIL if they should be looked up from the global path"
 
 (defun yarn-exec-with-path (callback &rest args)
   "Execute CALLBACK with the path set to YARN_EXECUTABLE_PATH."
-  (let ((exec-path (if yarn-executable-path
-                     (cons yarn-executable-path)
-                     exec-path))
-        (compilation-environment (if yarn-executable-path
-                                   (cons (concat "PATH=" yarn-executable-path path-separator (getenv "PATH")) compilation-environment)
-                                   compilation-environment)))
-    (apply callback args)))
+  (when yarn-executable-path
+    (setenv "PATH" (concat yarn-executable-path path-separator (getenv "PATH"))))
+  (apply callback args))
 
 (defun yarn-git ()
   (concat "git@github.com:" yarn-vars-git-user "/" yarn-vars-name ".git"))
@@ -186,7 +184,7 @@ NIL if they should be looked up from the global path"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add dev dependency (e.g: tape): " yarn-vars-add-dep))
   (message (concat "Adding dev dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-dev" "*yarn*" "yarn" "add" yarn-vars-add-dep "-dev"))
+  (yarn-exec-with-path 'start-process "yarn-add-dev" "*yarn*" "yarn" "add" yarn-vars-add-dep "--dev"))
 
 (defun yarn-add-peer ()
   "Add peer dependency"
@@ -200,21 +198,21 @@ NIL if they should be looked up from the global path"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add optional dependency (e.g: fetch): " yarn-vars-add-dep))
   (message (concat "Adding optional dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-optional" "*yarn*" "yarn" "add" yarn-vars-add-dep "-optional"))
+  (yarn-exec-with-path 'start-process "yarn-add-optional" "*yarn*" "yarn" "add" yarn-vars-add-dep "--optional"))
 
 (defun yarn-add-exact ()
   "Add exact dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add exact dependency (e.g: react-router): " yarn-vars-add-dep))
   (message (concat "Adding exact dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-exact" "*yarn*" "yarn" "add" yarn-vars-add-dep "-exact"))
+  (yarn-exec-with-path 'start-process "yarn-add-exact" "*yarn*" "yarn" "add" yarn-vars-add-dep "--exact"))
 
 (defun yarn-add-tilde ()
   "Add exact dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add tilde dependency (e.g: react): " yarn-vars-add-dep))
   (message (concat "Adding tilde dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
+  (yarn-exec-with-path 'start-process "yarn-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "--tilde"))
 
 (defun yarn-global-add ()
   "Add dependency globally"
@@ -228,14 +226,14 @@ NIL if they should be looked up from the global path"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add global exact dependency (e.g: react-router): " yarn-vars-add-dep))
   (message (concat "Adding exact dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-global-add-exact" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-exact"))
+  (yarn-exec-with-path 'start-process "yarn-global-add-exact" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "--exact"))
 
 (defun yarn-global-add-tilde ()
   "Add exact dependency globally"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add global tilde dependency (e.g: react): " yarn-vars-add-dep))
   (message (concat "Adding tilde dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-global-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
+  (yarn-exec-with-path 'start-process "yarn-global-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "--tilde"))
 
 (defun yarn-parse-dependency (input)
   (let (name ver dev)
@@ -547,16 +545,24 @@ From http://benhollis.net/blog/2015/12/20/nodejs-stack-traces-in-emacs-compilati
   "Yarn compilation mode."
   (progn
     (set (make-local-variable 'compilation-error-regexp-alist) yarn-node-error-regexp-alist)
-    (add-hook 'compilation-filter-hook 'yarn-compilation-filter nil t)
-  ))
+    (add-hook 'compilation-filter-hook 'yarn-compilation-filter nil t)))
 
 (defun yarn-parse-scripts (raw-scripts)
-  "Parse the output of the `yarn run` command in RAW-SCRIPTS into a list of scripts."
-  (delq nil
-        (mapcar (lambda (script-line)
-                  (when (string-match-p "^  \\w" script-line)
-                    (string-trim script-line)))
-                raw-scripts)))
+  "Parse the output of the `yarn run` command in RAW-SCRIPTS into a list of scripts.
+Returns a cons of (script-list . hashtable) with the actual
+invoked command to be used in an annotation function when
+displaying completions."
+  (flet ((is-command (l) (string-match-p (rx line-start (* space) "-") l))
+         (trim (s) (string-trim-left s "[- ]*")))
+    (let ((command-list
+           (->> raw-scripts
+                (-drop-while (lambda (s) (not (is-command s))))
+                (-partition 2)
+                reverse
+                (-drop-while (lambda (c) (not (is-command (car c)))))
+                reverse
+                (-map (lambda (c) (cons (trim (car c)) (trim (cadr c))))))))
+      (list (-map #'car command-list) (ht-from-alist command-list)))))
 
 ;;;###autoload
 (defun yarn-run (&optional script)
@@ -567,14 +573,19 @@ SCRIPT can be passed in or selected from a list of scripts configured in a packa
   (save-some-buffers (not compilation-ask-about-save)
                      (when (boundp 'compilation-save-buffers-predicate)
                        compilation-save-buffers-predicate))
-  (let* ((scripts (yarn-parse-scripts (yarn-exec-with-path (process-lines "yarn" "run"))))
-         (selected-script (or script (ido-completing-read "Select script to run: " scripts)))
-         (script (concat "yarn run " selected-script))
-         (buffer-name (concat "*yarn run: " selected-script "*")))
+  (-let* (((scripts docs) (yarn-parse-scripts (yarn-exec-with-path 'process-lines "yarn" "run")))
+          (completion-extra-properties
+           (list :annotation-function
+                 (lambda (s)
+                   (let ((padding-len (1+ (- (-max (-map #'length scripts)) (length s)))))
+                     (concat (s-repeat padding-len " ") (ht-get docs s))))))
+          (selected-script (or script (completing-read "Select script to run: " scripts)))
+          (script (concat "yarn run " selected-script))
+          (buffer-name (concat "*yarn run: " selected-script "*")))
     (when (get-buffer buffer-name)
       (kill-buffer buffer-name))
-      (with-current-buffer (get-buffer-create buffer-name)
-        (yarn-exec-with-path 'compilation-start script 'yarn-compilation-mode (lambda (m) (buffer-name))))))
+    (with-current-buffer (get-buffer-create buffer-name)
+      (yarn-exec-with-path 'compilation-start script 'yarn-compilation-mode (lambda (m) (buffer-name))))))
 
 
 (provide 'yarn)
