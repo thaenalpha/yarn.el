@@ -184,7 +184,7 @@ NIL if they should be looked up from the global path"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add dev dependency (e.g: tape): " yarn-vars-add-dep))
   (message (concat "Adding dev dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-dev" "*yarn*" "yarn" "add" yarn-vars-add-dep "-dev"))
+  (yarn-exec-with-path 'start-process "yarn-add-dev" "*yarn*" "yarn" "add" yarn-vars-add-dep "--dev"))
 
 (defun yarn-add-peer ()
   "Add peer dependency"
@@ -198,21 +198,21 @@ NIL if they should be looked up from the global path"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add optional dependency (e.g: fetch): " yarn-vars-add-dep))
   (message (concat "Adding optional dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-optional" "*yarn*" "yarn" "add" yarn-vars-add-dep "-optional"))
+  (yarn-exec-with-path 'start-process "yarn-add-optional" "*yarn*" "yarn" "add" yarn-vars-add-dep "--optional"))
 
 (defun yarn-add-exact ()
   "Add exact dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add exact dependency (e.g: react-router): " yarn-vars-add-dep))
   (message (concat "Adding exact dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-exact" "*yarn*" "yarn" "add" yarn-vars-add-dep "-exact"))
+  (yarn-exec-with-path 'start-process "yarn-add-exact" "*yarn*" "yarn" "add" yarn-vars-add-dep "--exact"))
 
 (defun yarn-add-tilde ()
   "Add exact dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add tilde dependency (e.g: react): " yarn-vars-add-dep))
   (message (concat "Adding tilde dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
+  (yarn-exec-with-path 'start-process "yarn-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "--tilde"))
 
 (defun yarn-global-add ()
   "Add dependency globally"
@@ -226,14 +226,14 @@ NIL if they should be looked up from the global path"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add global exact dependency (e.g: react-router): " yarn-vars-add-dep))
   (message (concat "Adding exact dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-global-add-exact" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-exact"))
+  (yarn-exec-with-path 'start-process "yarn-global-add-exact" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "--exact"))
 
 (defun yarn-global-add-tilde ()
   "Add exact dependency globally"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add global tilde dependency (e.g: react): " yarn-vars-add-dep))
   (message (concat "Adding tilde dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-global-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
+  (yarn-exec-with-path 'start-process "yarn-global-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "--tilde"))
 
 (defun yarn-parse-dependency (input)
   (let (name ver dev)
@@ -573,7 +573,7 @@ SCRIPT can be passed in or selected from a list of scripts configured in a packa
   (save-some-buffers (not compilation-ask-about-save)
                      (when (boundp 'compilation-save-buffers-predicate)
                        compilation-save-buffers-predicate))
-  (-let* (((scripts docs) (yarn-parse-scripts (process-lines "yarn" "run")))
+  (-let* (((scripts docs) (yarn-parse-scripts (yarn-exec-with-path 'process-lines "yarn" "run")))
           (completion-extra-properties
            (list :annotation-function
                  (lambda (s)
