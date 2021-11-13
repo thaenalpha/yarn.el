@@ -347,7 +347,7 @@ NIL if they should be looked up from the global path"
 (defun yarn-ls ()
   "List installed packages"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-ls" "*yarn*" "yarn" "ls"))
+  (yarn-exec-with-path 'start-process "yarn-ls" "*yarn*" "yarn" "list"))
 
 (defun yarn-licenses-ls ()
   "List installed packages and their licenses"
